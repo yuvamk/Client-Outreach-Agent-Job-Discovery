@@ -305,14 +305,19 @@ export default function JobsPageClient() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   <span className="font-bold text-slate-900 dark:text-white">{dbTotal}</span> jobs in database
                 </p>
-                <button 
+                <button
                   onClick={handleDeleteAll}
                   className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-bold uppercase tracking-wider transition-colors"
                 >
                   <Trash2 className="w-3 h-3" /> Clear All Data
                 </button>
               </div>
-              <button onClick={fetchDbJobs} className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">↻ Refresh</button>
+              <button
+                onClick={fetchDbJobs}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              >
+                Refresh List
+              </button>
             </div>
             <JobsGrid 
               jobs={dbJobs as unknown as RankedJob[]} 

@@ -220,6 +220,16 @@ export default function JobCard({ job, isSaved, onSave, onTailor, onDelete }: Pr
             >
               {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
             </button>
+            
+            {onDelete && job._id && (
+              <button
+                onClick={() => onDelete(job._id as string)}
+                className="p-2 rounded-xl border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all shrink-0"
+                title="Delete from database"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
           
           <button
