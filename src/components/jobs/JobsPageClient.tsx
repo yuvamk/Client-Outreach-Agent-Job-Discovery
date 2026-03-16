@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Bookmark, Search, Database, ChevronDown, ChevronUp, Settings2, Trash2 } from 'lucide-react';
+import { Bookmark, Search, Database, ChevronDown, ChevronUp, Settings2, Trash2, X } from 'lucide-react';
 import ResumeUploadPanel from './ResumeUploadPanel';
 import JobSearchPanel from './JobSearchPanel';
 import FilterSidebar, { type FilterState } from './FilterSidebar';
@@ -51,7 +51,7 @@ export default function JobsPageClient() {
   const [dbTotal, setDbTotal] = useState(0);
   const [setupOpen, setSetupOpen] = useState(true);
 
-  const lastSearchRef = useRef<{ role: string; location: string; platforms: string[]; vibeCoderMode: boolean } | null>(null);
+  const lastSearchRef = useRef<{ role: string; location: string; platforms: string[]; vibeCoderMode: boolean; experience?: { years: number; months: number }; autonomous: boolean } | null>(null);
   const previousJobKeysRef = useRef<Set<string>>(new Set());
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
@@ -103,7 +103,7 @@ export default function JobsPageClient() {
     }).catch(() => {});
   }, []);
 
-  const runStreamSearch = useCallback(async (params: { role: string; location: string; platforms: string[]; vibeCoderMode: boolean }) => {
+  const runStreamSearch = useCallback(async (params: { role: string; location: string; platforms: string[]; vibeCoderMode: boolean; experience?: { years: number; months: number }; autonomous: boolean }) => {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     setLoading(true);
@@ -120,7 +120,14 @@ export default function JobsPageClient() {
       const res = await fetch('/api/jobs/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: params.role, location: params.location, platforms: params.platforms, resumeProfile: profile }),
+        body: JSON.stringify({ 
+          role: params.role, 
+          location: params.location, 
+          platforms: params.platforms, 
+          resumeProfile: profile,
+          experience: params.experience,
+          autonomous: params.autonomous
+        }),
         signal: abortRef.current.signal,
       });
       if (!res.ok || !res.body) throw new Error('Stream failed to start');
@@ -197,7 +204,7 @@ export default function JobsPageClient() {
     } catch (err) { console.error('Delete all failed:', err); }
   }, []);
 
-  const handleSearch = useCallback((params: { role: string; location: string; platforms: string[]; vibeCoderMode: boolean }) => {
+  const handleSearch = useCallback((params: { role: string; location: string; platforms: string[]; vibeCoderMode: boolean; experience?: { years: number; months: number }; autonomous: boolean }) => {
     setVibeCoderMode(params.vibeCoderMode);
     runStreamSearch(params);
   }, [runStreamSearch]);
@@ -403,6 +410,14 @@ export default function JobsPageClient() {
                     {isStreaming ? 'Live output — running…' : `Activity log (${activityLogs.length} events)`}
                     {showTerminal ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                   </button>
+                  {isStreaming && (
+                    <button
+                      onClick={() => abortRef.current?.abort()}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 text-xs font-bold transition-all border border-red-200 dark:border-red-800"
+                    >
+                      <X className="w-3.5 h-3.5" /> Stop Search
+                    </button>
+                  )}
                 </div>
                 {showTerminal && <LiveActivityFeed logs={activityLogs} isActive={isStreaming} />}
               </div>

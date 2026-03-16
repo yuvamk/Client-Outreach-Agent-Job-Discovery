@@ -69,15 +69,15 @@ export default function Dashboard() {
           <ScrapeForm onScraped={fetchLeads} onProgress={addLog} />
         </div>
 
+        {/* Stats Row */}
+        <StatsCards leads={leads} />
+
         {/* Live Activity & Custom Outreach Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="lg:col-span-1">
              <ManualOutreach onSent={fetchLeads} />
           </div>
-          <div className="lg:col-span-1">
-            <StatsCards leads={leads} />
-          </div>
-          <div className="lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[220px]">
+          <div className="lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[350px]">
             <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-xs font-bold text-slate-500 uppercase">Live Activity</span>

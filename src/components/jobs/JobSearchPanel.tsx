@@ -6,7 +6,7 @@ import type { ResumeProfile } from '@/lib/resumeParser';
 
 interface Props {
   profile: ResumeProfile | null;
-  onSearch: (params: { role: string; location: string; platforms: string[]; vibeCoderMode: boolean }) => void;
+  onSearch: (params: { role: string; location: string; platforms: string[]; vibeCoderMode: boolean; experience?: { years: number; months: number }; autonomous: boolean }) => void;
   loading: boolean;
   vibeCoderMode: boolean;
   onVibeCoderToggle: (v: boolean) => void;
@@ -23,6 +23,7 @@ const PLATFORMS = [
   { id: 'findwork',       label: 'Findwork.dev',       free: true,  emoji: '🔍' },
   { id: 'adzuna',         label: 'Adzuna',             free: false, emoji: '📋', needsKey: 'ADZUNA_APP_ID' },
   { id: 'jsearch',        label: 'LinkedIn / Indeed',  free: false, emoji: '💎', needsKey: 'RAPIDAPI_KEY' },
+  { id: 'google',         label: 'Google Search',      free: true,  emoji: '🔍' },
 ];
 
 const FREE_PLATFORM_IDS = PLATFORMS.filter(p => p.free).map(p => p.id);
@@ -32,6 +33,14 @@ export default function JobSearchPanel({ profile, onSearch, loading, vibeCoderMo
   const [location, setLocation] = useState('Remote');
   const [remoteOnly, setRemoteOnly] = useState(true);
   const [platforms, setPlatforms] = useState<string[]>(FREE_PLATFORM_IDS);
+  const [expYears, setExpYears] = useState<number>(profile?.years_of_experience || 0);
+  const [expMonths, setExpMonths] = useState<number>(0);
+  const [autonomous, setAutonomous] = useState(false);
+
+  // Sync with profile if it changes
+  useEffect(() => {
+    if (profile) setExpYears(profile.years_of_experience || 0);
+  }, [profile]);
 
   // Auto-fill role from resume
   useEffect(() => {
@@ -62,7 +71,14 @@ export default function JobSearchPanel({ profile, onSearch, loading, vibeCoderMo
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!role.trim() || platforms.length === 0) return;
-    onSearch({ role: role.trim(), location: remoteOnly ? 'Remote' : location, platforms, vibeCoderMode });
+    onSearch({ 
+      role: role.trim(), 
+      location: remoteOnly ? 'Remote' : location, 
+      platforms, 
+      vibeCoderMode,
+      autonomous,
+      experience: { years: expYears, months: expMonths }
+    });
   };
 
   return (
@@ -111,6 +127,31 @@ export default function JobSearchPanel({ profile, onSearch, loading, vibeCoderMo
               placeholder="City, Country…"
               className="w-full pl-9 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             />
+          </div>
+        </div>
+
+        {/* Experience */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+            Your Experience
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="relative">
+               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Years</span>
+               <input
+                type="number" value={expYears} onChange={e => setExpYears(parseInt(e.target.value) || 0)}
+                min="0" max="50"
+                className="w-full pl-4 pr-12 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all shadow-sm"
+              />
+            </div>
+            <div className="relative">
+               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Months</span>
+               <input
+                type="number" value={expMonths} onChange={e => setExpMonths(parseInt(e.target.value) || 0)}
+                min="0" max="11"
+                className="w-full pl-4 pr-14 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all shadow-sm"
+              />
+            </div>
           </div>
         </div>
 
@@ -163,6 +204,29 @@ export default function JobSearchPanel({ profile, onSearch, loading, vibeCoderMo
           <p className="text-[10px] text-slate-400 mt-2">
             💡 All free platforms need no API keys. Results from more platforms = more total jobs found.
           </p>
+        </div>
+
+        {/* Autonomous Mode */}
+        <div className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+          autonomous
+            ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700'
+            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+        }`}>
+          <div className="flex items-center gap-2">
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${autonomous ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700'} transition-colors`}>
+              <Globe className={`w-3.5 h-3.5 ${autonomous ? 'text-white' : 'text-slate-400'}`} />
+            </div>
+            <div>
+              <p className={`text-sm font-semibold ${autonomous ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                🚀 Autonomous Mode
+              </p>
+              <p className="text-[10px] text-slate-400">AI plans & searches in waves (ECC)</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => setAutonomous(!autonomous)}
+            className={`relative w-10 h-5 rounded-full transition-all duration-200 ${autonomous ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${autonomous ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
         </div>
 
         {/* Vibe Coder Mode */}

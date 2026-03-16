@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `You are an expert resume writer and career coach. 
 Your task is to tailor a resume specifically for the following job, while keeping it 100% truthful — only reorganize, emphasize, and rephrase existing content to better match the job requirements. Do NOT fabricate experience, skills, or credentials.

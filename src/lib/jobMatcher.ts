@@ -14,7 +14,8 @@ export interface JobMatch {
 
 export async function matchJobWithResume(
   job: RawJob,
-  profile: ResumeProfile
+  profile: ResumeProfile,
+  instincts?: string
 ): Promise<JobMatch> {
   if (!process.env.GEMINI_API_KEY) {
     return {
@@ -26,7 +27,7 @@ export async function matchJobWithResume(
     };
   }
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `You are a job-matching AI. Given a candidate profile and a job description, return a JSON object.
 
@@ -43,6 +44,9 @@ ${JSON.stringify({
     description: e.description
   }))
 }, null, 2)}
+
+Learned Instincts (Historical Preferences):
+${instincts || "No learned instincts yet."}
 
 Job Title: ${job.title}
 Company: ${job.company}
@@ -86,7 +90,8 @@ Rules:
 export async function batchMatchJobs(
   jobs: RawJob[],
   profile: ResumeProfile,
-  maxJobs = 20
+  maxJobs = 50,
+  instincts?: string
 ): Promise<(RawJob & { match: JobMatch })[]> {
   const limitedJobs = jobs.slice(0, maxJobs);
   
@@ -98,7 +103,7 @@ export async function batchMatchJobs(
     const batch = limitedJobs.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
       batch.map(async (job) => {
-        const match = await matchJobWithResume(job, profile);
+        const match = await matchJobWithResume(job, profile, instincts);
         return { ...job, match };
       })
     );

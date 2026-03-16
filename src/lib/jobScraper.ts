@@ -15,6 +15,8 @@ export interface RawJob {
   is_vibe_coder_friendly?: boolean;
 }
 
+import { SmartCareerParser } from "./SmartCareerParser";
+
 const VIBE_CODER_KEYWORDS = [
   "ai developer", "prompt engineer", "llm engineer", "ai-assisted",
   "vibe coding", "no-code", "low-code", "cursor", "replit", "bolt",
@@ -382,6 +384,122 @@ async function scrapeHNHiring(role: string): Promise<RawJob[]> {
   } catch { return []; }
 }
 
+// ── 11. Google Search (Puppeteer) ─────────────────────────────────────────────
+async function scrapeGoogleJobs(role: string, location: string, onProgress?: (msg: string) => void): Promise<RawJob[]> {
+  try {
+    onProgress?.(`Starting Deep Career Scraper for "${role}" in "${location}"...`);
+
+    const puppeteer = await import("puppeteer");
+    const browser = await puppeteer.default.launch({ 
+      headless: true, 
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--window-size=1280,1000"] 
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1280, height: 1000 });
+      
+      // Phase 1: Discover Company Domains
+      const discoverQuery = `${role} companies ${location} -site:linkedin.com -site:indeed.com -site:glassdoor.com`;
+      await page.goto(`https://www.google.com/search?q=${encodeURIComponent(discoverQuery)}`, { waitUntil: "networkidle2" });
+      
+      // Handle consent
+      try {
+        const consentButton = await page.$('button[aria-label="Accept all"]');
+        if (consentButton) {
+          await consentButton.click();
+          await page.waitForNavigation({ waitUntil: "networkidle2" });
+        }
+      } catch { /* ignore */ }
+
+      onProgress?.(`Discovery page loaded. Identifying company websites...`);
+
+      const allFoundJobs: RawJob[] = [];
+      const seenDomains = new Set<string>();
+      let pageNum = 0;
+      const MAX_PAGES = 5; // Search up to 5 pages of Google Results per task wave
+
+      while (pageNum < MAX_PAGES) {
+        onProgress?.(`Processing Google search page ${pageNum + 1}...`);
+        
+        const targets = await page.evaluate(() => {
+          const links: { url: string; title: string }[] = [];
+          const jobBoards = ['linkedin', 'indeed', 'glassdoor', 'ziprecruiter', 'monster', 'simplyhired', 'careerbuilder', 'jooble', 'remotive', 'remoteok', 'weworkremotely', 'jobicy', 'arbeitnow', 'themuse', 'adzuna', 'jsearch', 'findwork'];
+          
+          document.querySelectorAll(".g a, .MjjYud a").forEach((el: any) => {
+            const url = el.href;
+            if (url && !url.includes("google.com") && !url.includes("social") && url.length > 10) {
+              const domain = new URL(url).hostname.toLowerCase();
+              const isJobBoard = jobBoards.some(board => domain.includes(board));
+              if (!isJobBoard) {
+                links.push({ url, title: el.querySelector("h3")?.textContent || "" });
+              }
+            }
+          });
+          return links;
+        });
+
+        for (const target of targets) {
+          try {
+            const domain = new URL(target.url).hostname;
+            if (seenDomains.has(domain) || domain.includes("job") || domain.includes("board")) continue;
+            seenDomains.add(domain);
+
+            onProgress?.(`🕵️ Deep analyzing: ${domain}...`);
+            
+            const companyBaseUrl = `https://${domain}`;
+            await page.goto(companyBaseUrl, { waitUntil: "networkidle2", timeout: 15000 });
+            const homeHtml = await page.content();
+            
+            const careerUrl = await SmartCareerParser.findCareersLink(homeHtml, companyBaseUrl);
+            
+            if (careerUrl) {
+              onProgress?.(`  🎯 Found Career Page: ${new URL(careerUrl).pathname}`);
+              await page.goto(careerUrl, { waitUntil: "networkidle2", timeout: 20000 });
+              await new Promise(r => setTimeout(r, 2000));
+              const careerHtml = await page.content();
+              
+              const companyName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+              const extracted = await SmartCareerParser.extractJobs(careerHtml, careerUrl, companyName);
+              
+              if (extracted.length > 0) {
+                onProgress?.(`  ✅ Extracted ${extracted.length} jobs from ${domain}`);
+                allFoundJobs.push(...extracted);
+              }
+            }
+          } catch (err) {
+            onProgress?.(`  ⚠️ Skip ${target.url}: ${err instanceof Error ? err.message : 'timeout'}`);
+          }
+        }
+
+        // Try to go to next page
+        const nextButton = await page.$('a#pnnext');
+        if (nextButton) {
+          await Promise.all([
+            nextButton.click(),
+            page.waitForNavigation({ waitUntil: "networkidle2" })
+          ]);
+          pageNum++;
+        } else {
+          break; // No more pages
+        }
+      }
+
+      onProgress?.(`Deep Discovery complete. Found ${allFoundJobs.length} direct jobs.`);
+      return allFoundJobs.map(j => ({
+        ...j,
+        is_vibe_coder_friendly: isVibeCoderFriendly(j.title, j.job_description)
+      }));
+
+    } finally {
+      await browser.close();
+    }
+  } catch (err) { 
+    onProgress?.(`❌ Google Scrape Error: ${err instanceof Error ? err.message : 'Unknown'}`);
+    return []; 
+  }
+}
+
 // ── Main Scraper Orchestrator ─────────────────────────────────────────────────
 
 export interface ScraperTask {
@@ -393,7 +511,8 @@ export interface ScraperTask {
 export function buildScraperTasks(
   role: string,
   location: string,
-  platforms: string[]
+  platforms: string[],
+  onProgress?: (msg: string) => void
 ): ScraperTask[] {
   const all: ScraperTask[] = [
     { id: "remotive",       label: "Remotive",              fn: () => scrapeRemotive(role) },
@@ -406,6 +525,7 @@ export function buildScraperTasks(
     { id: "hn",             label: "HackerNews Hiring",     fn: () => scrapeHNHiring(role) },
     { id: "adzuna",         label: "Adzuna",                fn: () => scrapeAdzuna(role, location) },
     { id: "jsearch",        label: "LinkedIn/Indeed (JSearch)", fn: () => scrapeJSearch(role, location) },
+    { id: "google",         label: "Google Search",         fn: () => scrapeGoogleJobs(role, location, onProgress) },
   ];
   // "all" pseudo-platform means select everything
   if (platforms.includes("all")) return all;
@@ -415,9 +535,10 @@ export function buildScraperTasks(
 export async function scrapeJobs(
   role: string,
   location: string,
-  platforms: string[]
+  platforms: string[],
+  onProgress?: (msg: string) => void
 ): Promise<RawJob[]> {
-  const tasks = buildScraperTasks(role, location, platforms);
+  const tasks = buildScraperTasks(role, location, platforms, onProgress);
   const results = await Promise.allSettled(tasks.map(t => t.fn()));
   const allJobs: RawJob[] = [];
   for (const result of results) {

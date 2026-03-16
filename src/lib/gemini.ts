@@ -8,7 +8,7 @@ export async function generatePersonalizedEmail(businessName: string, category: 
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
             You are Yuvam Kumar, the lead at Kinetic, a boutique digital agency specializing in premium web presence for local businesses.

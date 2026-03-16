@@ -34,7 +34,7 @@ async function extractWithGeminiVision(buffer: Buffer, mimeType: string): Promis
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not set");
   }
-  const model = googleAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = googleAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const result = await model.generateContent([
     {
