@@ -66,8 +66,10 @@ export class AutonomousSearchManager {
 
     try {
       const result = await model.generateContent(prompt);
-      const text = result.response.text().replace(/```json|```/g, "").trim();
-      return JSON.parse(text);
+      const text = result.response.text().trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No JSON object found in AI response");
+      return JSON.parse(jsonMatch[0]);
     } catch (err) {
       console.error("Strategy Planning Error:", err);
       // Fallback strategy if AI fails
