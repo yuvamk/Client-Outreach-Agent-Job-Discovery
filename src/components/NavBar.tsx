@@ -9,7 +9,6 @@ export default function NavBar() {
 
   const tabs = [
     { href: '/', label: 'Client Outreach', icon: Search },
-    { href: '/jobs', label: 'Job Discovery', icon: Briefcase },
   ];
 
   return (
